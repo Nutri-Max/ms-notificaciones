@@ -6,19 +6,34 @@ import {
   NotificacionDocument,
   EstadoNotificacion,
 } from '../schemas/notificacion.schema';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class NotificacionesService {
   constructor(
     @InjectModel(Notificacion.name)
     private notificacionModel: Model<NotificacionDocument>,
+    private emailService: EmailService,
   ) {}
 
   async crear(datos: Partial<Notificacion>): Promise<Notificacion> {
     const nueva = new this.notificacionModel(datos);
-    // Aca mas adelante se conectaria un servicio real de envio (email/SMS)
-    // Por ahora simulamos que se envia correctamente
-    nueva.estado = EstadoNotificacion.ENVIADA;
+
+    if (nueva.tipo === 'EMAIL') {
+      try {
+        await this.emailService.enviarCorreo(
+          nueva.destinatario,
+          nueva.asunto,
+          nueva.mensaje,
+        );
+        nueva.estado = EstadoNotificacion.ENVIADA;
+      } catch (error) {
+        nueva.estado = EstadoNotificacion.FALLIDA;
+      }
+    } else {
+      nueva.estado = EstadoNotificacion.ENVIADA;
+    }
+
     return nueva.save();
   }
 
